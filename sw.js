@@ -1,4 +1,4 @@
-const CACHE = 'dkpl-v2';
+const CACHE = 'dkpl-v3';
 const CORE = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './icon-maskable-512.png'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(CORE)).then(() => self.skipWaiting())); });
 self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim())); });
@@ -28,5 +28,5 @@ self.addEventListener('notificationclick', e => {
 // Ready for server push later (Web Push)
 self.addEventListener('push', e => {
   let d = {}; try { d = e.data ? e.data.json() : {}; } catch (_) { d = { body: e.data && e.data.text() }; }
-  e.waitUntil(self.registration.showNotification(d.title || 'طريق التطور والاتزان', { body: d.body || '', icon: 'icon-192.png', badge: 'icon-192.png', lang: 'ar', dir: 'rtl', tag: d.tag }));
+  e.waitUntil(self.registration.showNotification(d.title || 'طريق التطور والاتزان', { body: d.body || '', icon: 'icon-192.png', badge: 'icon-192.png', lang: 'ar', dir: 'rtl', tag: d.tag, data: { url: './' } }));
 });

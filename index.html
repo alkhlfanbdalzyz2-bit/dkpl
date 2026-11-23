@@ -706,12 +706,12 @@ document.addEventListener('click', e => {
     case 'close': closeDaySheet(); break;
     case 'confirmclose': { d.closed = true; afterChange(); closeSheet(); toast('خُتم يومك، تقبّل الله منك'); vib([15,50,15]); window.scrollTo({top:document.body.scrollHeight,behavior:'smooth'}); break; }
     case 'reopen': { d.closed = false; afterChange(); render(); toast('أُعيد فتح اليوم'); break; }
-    case 'fmode': { S.settings.fajrMode = b.dataset.v; rollover(); save(); render(); break; }
-    case 'off': { S.settings.offset = Math.max(-60, Math.min(60, (+S.settings.offset||0) + +b.dataset.d)); rollover(); save(); render(); break; }
+    case 'fmode': { S.settings.fajrMode = b.dataset.v; rollover(); save(); render(); pushSoon(); break; }
+    case 'off': { S.settings.offset = Math.max(-60, Math.min(60, (+S.settings.offset||0) + +b.dataset.d)); rollover(); save(); render(); pushSoon(); break; }
     case 'geo': {
       if(!navigator.geolocation){ toast('الموقع غير متاح في هذا المتصفح'); break; }
       toast('جارٍ تحديد الموقع…');
-      navigator.geolocation.getCurrentPosition(p => { S.settings.lat = +p.coords.latitude.toFixed(4); S.settings.lng = +p.coords.longitude.toFixed(4); S.settings.place = 'موقعي الحالي'; rollover(); save(); render(); toast('حُدّث وقت الفجر حسب موقعك'); },
+      navigator.geolocation.getCurrentPosition(p => { S.settings.lat = +p.coords.latitude.toFixed(4); S.settings.lng = +p.coords.longitude.toFixed(4); S.settings.place = 'موقعي الحالي'; rollover(); save(); render(); pushSoon(); toast('حُدّث وقت الفجر حسب موقعك'); },
         () => toast('تعذّر تحديد الموقع'), {timeout:12000, maximumAge:6e5});
       break; }
     case 'export': exportData(); break;
@@ -720,11 +720,11 @@ document.addEventListener('click', e => {
     case 'splash': showSplash(true); break;
     case 'rewizard': openWizard(); break;
     case 'notifon': enableNotifs(); break;
-    case 'notifoff': S.settings.notif = false; save(); render(); break;
+    case 'notifoff': S.settings.notif = false; save(); render(); unsubscribePush(); break;
     case 'notiftest': notify('تجربة التذكير', 'هكذا تصلك التذكيرات الطيبة بإذن الله.', 'test'); break;
-    case 'ron': { const r = S.reminders.find(x=>x.id===b.dataset.id); if(r){ r.on=!r.on; b.classList.toggle('on', r.on); save(); } break; }
-    case 'rdel': { S.reminders = S.reminders.filter(x=>x.id!==b.dataset.id); save(); render(); break; }
-    case 'radd': { S.reminders.push({id:uid(), on:true, mode:'time', time:'20:00', title:'تذكير', body:'خطوة صغيرة اليوم تصنع فرقًا كبيرًا.'}); save(); render(); break; }
+    case 'ron': { const r = S.reminders.find(x=>x.id===b.dataset.id); if(r){ r.on=!r.on; b.classList.toggle('on', r.on); save(); pushSoon(); } break; }
+    case 'rdel': { S.reminders = S.reminders.filter(x=>x.id!==b.dataset.id); save(); render(); pushSoon(); break; }
+    case 'radd': { S.reminders.push({id:uid(), on:true, mode:'time', time:'20:00', title:'تذكير', body:'خطوة صغيرة اليوم تصنع فرقًا كبيرًا.'}); save(); render(); pushSoon(); break; }
     case 'wz': wizardAct(b); break;
   }
 });
@@ -738,7 +738,7 @@ document.addEventListener('submit', e => {
 });
 document.addEventListener('input', e => {
   const el = e.target;
-  if(el.dataset.rf){ const r = S.reminders.find(x=>x.id===el.dataset.id); if(r){ const f = el.dataset.rf; r[f] = f==='after' ? Math.max(0, Math.min(240, +el.value||0)) : el.value; save(); } }
+  if(el.dataset.rf){ const r = S.reminders.find(x=>x.id===el.dataset.id); if(r){ const f = el.dataset.rf; r[f] = f==='after' ? Math.max(0, Math.min(240, +el.value||0)) : el.value; save(); pushSoon(); } }
   if(el.dataset.etext){ const t = findTask(el.dataset.etext); if(t){ t.text = el.value.trim() || t.text; save(); } }
   if(el.dataset.set){
     const k = el.dataset.set; let v = el.value;
@@ -751,7 +751,7 @@ document.addEventListener('input', e => {
 });
 document.addEventListener('change', e => {
   const k = e.target.dataset && e.target.dataset.set;
-  if(k && ['angle','manualFajr'].includes(k)){ rollover(); save(); render(); }
+  if(k && ['angle','manualFajr'].includes(k)){ rollover(); save(); render(); pushSoon(); }
 });
 document.addEventListener('keydown', e => { if(e.key==='Escape' && sheetMode) closeSheet(); });
 
@@ -803,7 +803,7 @@ function remindersHTML(){
       ${r.kind==='close'?'<div class="dim" style="font-size:12px;margin-top:6px">يذكّرك بنسبة إنجازك ويدعوك لختم يومك.</div>':`<input class="inp" data-rf="body" data-id="${r.id}" value="${esc(r.body)}" maxlength="90" style="margin-top:8px;padding:8px 10px;font-size:13px">`}
     </div>`).join('')}</div>
     <div class="row mt"><button class="btn sm grow" data-act="radd">+ تذكير جديد</button><button class="btn sm grow" data-act="notiftest">تجربة إشعار</button></div>
-    <div class="dim" style="font-size:12px;margin-top:10px">تصل التذكيرات أثناء استخدام التطبيق أو بعد إغلاقه بفترة قصيرة؛ وصولها والتطبيق مغلق تمامًا يحتاج خادم إشعارات.</div>` : ''}
+    <div class="dim" style="font-size:12px;margin-top:10px">${S.settings.push && pushCapable() ? 'تصلك التذكيرات في وقتها حتى لو كان التطبيق مغلقًا.' : 'تصل التذكيرات أثناء استخدام التطبيق أو بعد إغلاقه بفترة قصيرة.'}</div>` : ''}
   </section>`;
 }
 async function enableNotifs(){
@@ -811,8 +811,55 @@ async function enableNotifs(){
   let p = Notification.permission;
   if(p === 'default'){ try{ p = await Notification.requestPermission(); }catch(e){} }
   S.settings.notif = p === 'granted'; save(); render();
-  toast(p === 'granted' ? 'فُعّلت التذكيرات' : 'لم يُسمح بالإشعارات');
+  if(p === 'granted'){ const ok = await subscribePush(); render(); toast(ok ? 'فُعّلت التذكيرات، وستصلك ولو كان التطبيق مغلقًا' : 'فُعّلت التذكيرات'); }
+  else toast('لم يُسمح بالإشعارات');
 }
+/* ---- Server push (Netlify): reminders arrive even when the app is closed ---- */
+const VAPID_PUBLIC = 'BHpeRT8r8Sp2gkX1Ra41L4rTa-blLD6MYFO8XaxbJaA7XX0agPi_Yw6XQMu25Lac8QrONK3R3Z0r5qcWl14ouxc';
+const PUSH_API = '/api/push';
+const pushCapable = () => 'serviceWorker' in navigator && 'PushManager' in window && location.protocol === 'https:' && !/github\.io$/.test(location.hostname);
+function b64uToBytes(s){ s = s.replace(/-/g,'+').replace(/_/g,'/'); const raw = atob(s + '='.repeat((4 - s.length % 4) % 4)); return Uint8Array.from(raw, c => c.charCodeAt(0)); }
+async function subscribePush(){
+  if(!pushCapable()) return false;
+  try{
+    const reg = await navigator.serviceWorker.ready;
+    let sub = await reg.pushManager.getSubscription();
+    if(!sub) sub = await reg.pushManager.subscribe({userVisibleOnly:true, applicationServerKey:b64uToBytes(VAPID_PUBLIC)});
+    S.settings.push = true; save();
+    return await syncPush(sub);
+  }catch(e){ console.warn('push subscribe failed', e); S.settings.push = false; save(); return false; }
+}
+async function unsubscribePush(){
+  S.settings.push = false; save();
+  if(!pushCapable()) return;
+  try{ const reg = await navigator.serviceWorker.ready, sub = await reg.pushManager.getSubscription();
+    if(sub){ fetch(PUSH_API,{method:'DELETE',headers:{'content-type':'application/json'},body:JSON.stringify({endpoint:sub.endpoint})}).catch(()=>{}); await sub.unsubscribe(); } }catch(e){}
+}
+/** Upcoming reminder times (absolute) for the next 14 Fajr-days */
+function buildSchedule(){
+  const out = [], now = Date.now();
+  for(let i=0;i<14;i++){
+    const k = addDays(S.activeDay, i);
+    S.reminders.forEach((r, j) => {
+      if(!r.on) return;
+      const t = reminderAt(r, k).getTime(); if(t <= now) return;
+      const body = r.kind === 'close' ? 'راجع إنجاز يومك واختمه بحمدٍ وسكينة.' : (r.body || MOTIV[(i + j) % MOTIV.length]);
+      out.push({t, title:r.title, body, tag:r.id});
+    });
+  }
+  return out;
+}
+async function syncPush(sub){
+  try{
+    if(!sub){ const reg = await navigator.serviceWorker.ready; sub = await reg.pushManager.getSubscription(); }
+    if(!sub) return false;
+    const res = await fetch(PUSH_API, {method:'POST', headers:{'content-type':'application/json'}, body:JSON.stringify({subscription:sub.toJSON(), schedule:buildSchedule()})});
+    if(res.ok){ S.pushSynced = Date.now(); save(); return true; }
+  }catch(e){}
+  return false;
+}
+let pushT;
+function pushSoon(){ if(!S.settings.notif || !S.settings.push || !pushCapable()) return; clearTimeout(pushT); pushT = setTimeout(()=>syncPush(), 1500); }
 async function notify(title, body, tag){
   if(!('Notification' in window) || Notification.permission !== 'granted'){ toast('فعّل التذكيرات أولًا'); return false; }
   const opt = {body, tag, icon:'icon-192.png', badge:'icon-192.png', lang:'ar', dir:'rtl', data:{url:'./'}};
@@ -828,6 +875,7 @@ function reminderAt(r, dayKey){
   const d = new Date(base); d.setHours(0, m, 0, 0); return d;
 }
 function checkReminders(){
+  if(S.settings.push && pushCapable()) return; // server sends them
   if(!S.settings.notif || !('Notification' in window) || Notification.permission !== 'granted') return;
   const k = S.activeDay, now = new Date(), log = S.notifLog[k] = S.notifLog[k] || {};
   S.reminders.forEach(r => {
@@ -949,9 +997,32 @@ if(sessionStorage.getItem('dkpl.splash') && S.setupDone){ $('#splash').classList
 else { sessionStorage.setItem('dkpl.splash','1'); showSplash(); }
 setInterval(tick, 30000);
 setTimeout(checkReminders, 1500);
+setTimeout(() => { if(S.settings.notif && S.settings.push && pushCapable() && Date.now() - (S.pushSynced||0) > 6*3600e3) syncPush(); }, 2500);
+document.addEventListener('visibilitychange', () => { if(!document.hidden && S.settings.push && pushCapable() && Date.now() - (S.pushSynced||0) > 6*3600e3) syncPush(); });
+/* ---- Moving from the old GitHub link to Netlify (data travels in the URL hash) ---- */
+const NEW_HOME = 'https://altawazun.netlify.app/';
+if(/github\.io$/.test(location.hostname)){
+  const bar = document.createElement('div');
+  bar.style.cssText = 'position:fixed;inset:0 0 auto 0;z-index:95;background:#F2924A;color:#1b0f05;padding:calc(10px + env(safe-area-inset-top)) 16px 10px;font-weight:600;font-size:14px;text-align:center';
+  bar.innerHTML = 'انتقل التطبيق إلى رابط جديد بإشعارات كاملة — <button id="moveBtn" style="text-decoration:underline;font-weight:700">انقل بياناتي وافتحه</button>';
+  document.body.appendChild(bar);
+  $('#moveBtn').addEventListener('click', () => { saveNow(); const data = btoa(unescape(encodeURIComponent(JSON.stringify(S)))); location.href = NEW_HOME + '#import=' + encodeURIComponent(data); });
+}
+if(location.hash.startsWith('#import=')){
+  try{
+    const incoming = migrate(JSON.parse(decodeURIComponent(escape(atob(decodeURIComponent(location.hash.slice(8)))))));
+    history.replaceState(null, '', location.pathname);
+    const mine = Object.keys(S.days).length > 1 || S.setupDone;
+    if(!mine || confirm('وصلت بياناتك من الرابط القديم. هل تريد استبدال بيانات هذا الجهاز بها؟')){
+      incoming.settings.notif = false; incoming.settings.push = false; // permission must be granted again on the new link
+      S = incoming; rollover(); saveNow(); lastPct = compute(today()).pct;
+      $('#splash').classList.add('hide'); render(); toast('نُقلت بياناتك بنجاح. فعّل التذكيرات من الإعدادات');
+    }
+  }catch(e){ toast('تعذّر نقل البيانات'); }
+}
 
 // Debug/test hook (harmless)
-window.__dkpl = { get S(){return S;}, reminderAt, checkReminders, currentDayKey, fajrMin, rollover, render, streak, totalXP, level, compute, setState(s){ S = migrate(s); render(); } };
+window.__dkpl = { get S(){return S;}, buildSchedule, reminderAt, checkReminders, currentDayKey, fajrMin, rollover, render, streak, totalXP, level, compute, setState(s){ S = migrate(s); render(); } };
 
 if('serviceWorker' in navigator && location.protocol.startsWith('http')){
   window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(()=>{}));
